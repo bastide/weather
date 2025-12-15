@@ -14,7 +14,7 @@ try:
     SENSEHAT_AVAILABLE = True
 except (ImportError, RuntimeError):
     SENSEHAT_AVAILABLE = False
-    SenseHat = None  # type: ignore
+    SenseHat = None
     print("WARNING: SenseHAT not available, running in console-only mode")
 
 DISPLAY_INTERVAL = int(os.getenv("LED_DISPLAY_INTERVAL", "10"))
@@ -35,7 +35,7 @@ def get_mock_readings():
     return temp, pressure, humidity
 
 
-def read_sensors(sensor: "SenseHat | None"):
+def read_sensors(sensor):
     if sensor is None:
         return get_mock_readings()
 
@@ -45,11 +45,11 @@ def read_sensors(sensor: "SenseHat | None"):
         humidity = sensor.get_humidity()
         return temp, pressure, humidity
     except Exception as exc:  # noqa: BLE001
-        print(f"Error reading sensors: {exc}")
+        print("Error reading sensors: {}".format(exc))
         return get_mock_readings()
 
 
-def show_message(sensor: "SenseHat | None", text: str, color: tuple[int, int, int]):
+def show_message(sensor, text, color):
     if sensor is None:
         print(text)
         return
@@ -57,7 +57,7 @@ def show_message(sensor: "SenseHat | None", text: str, color: tuple[int, int, in
     try:
         sensor.show_message(text, text_colour=color, scroll_speed=SCROLL_SPEED)
     except Exception as exc:  # noqa: BLE001
-        print(f"Error displaying on LED: {exc}")
+        print("Error displaying on LED: {}".format(exc))
 
 
 def run_display_loop():
@@ -67,13 +67,13 @@ def run_display_loop():
             sensor = SenseHat()
             sensor.low_light = True
         except Exception as exc:  # noqa: BLE001
-            print(f"Error initializing SenseHAT: {exc}")
+            print("Error initializing SenseHAT: {}".format(exc))
             sensor = None
 
     modes = ["temp", "humidity", "pressure"]
     idx = 0
 
-    print(f"Starting LED display loop (interval={DISPLAY_INTERVAL}s)")
+    print("Starting LED display loop (interval={}s)".format(DISPLAY_INTERVAL))
     print("Press Ctrl+C to stop")
 
     try:
@@ -82,11 +82,11 @@ def run_display_loop():
             temp, pressure, humidity = read_sensors(sensor)
 
             if mode == "temp":
-                text = f"T:{temp:.1f}C"
+                text = "T:{:.1f}C".format(temp)
             elif mode == "humidity":
-                text = f"H:{humidity:.0f}%"
+                text = "H:{:.0f}%".format(humidity)
             else:
-                text = f"P:{pressure:.0f}"
+                text = "P:{:.0f}".format(pressure)
 
             show_message(sensor, text, COLORS[mode])
 
@@ -99,7 +99,7 @@ def run_display_loop():
             try:
                 sensor.clear()
             except Exception as exc:  # noqa: BLE001
-                print(f"Error clearing LED: {exc}")
+                print("Error clearing LED: {}".format(exc))
 
 
 if __name__ == "__main__":
