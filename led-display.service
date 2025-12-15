@@ -1,0 +1,26 @@
+[Unit]
+Description=SenseHAT LED Display Loop
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/weather
+ExecStart=/usr/bin/python3 /home/pi/weather/led_display.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=led-display
+
+# Optional tuning via environment variables
+Environment=LED_DISPLAY_INTERVAL=10
+Environment=LED_SCROLL_SPEED=0.05
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

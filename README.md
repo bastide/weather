@@ -129,6 +129,44 @@ Common issues:
 - **Module not found**: Verify all dependencies are installed for the correct Python user
 - **Port 5000 in use**: Change the port in `app.py` or stop conflicting services
 
+### LED Matrix as a Separate Service (SenseHAT)
+
+To run only the LED display loop on boot:
+
+1. Copy the service file:
+```bash
+sudo cp led-display.service /etc/systemd/system/
+```
+
+2. Reload systemd and enable:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable led-display.service
+sudo systemctl start led-display.service
+```
+
+3. Manage the service:
+```bash
+sudo systemctl status led-display.service
+sudo journalctl -u led-display.service -f
+sudo systemctl restart led-display.service
+sudo systemctl stop led-display.service
+sudo systemctl disable led-display.service
+```
+
+Configuration (override in the unit or with drop-in):
+- `LED_DISPLAY_INTERVAL` (seconds between switches, default 10)
+- `LED_SCROLL_SPEED` (scroll speed, default 0.05)
+
+Quick install script (recommended):
+
+```bash
+chmod +x install-led-service.sh
+./install-led-service.sh
+```
+
+The script will copy the unit, reload systemd, enable on boot, start, and show status.
+
 
 
 ## API Endpoints
