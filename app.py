@@ -55,8 +55,6 @@ class SensorDataManager:
                 self.sensor = SenseHat()
                 # Enable IMU (needed for humidity on some models)
                 self.sensor.set_imu_config(True, True, True)
-                # Set low light for LED matrix
-                self.sensor.low_light = True
             except Exception as e:
                 print(f"Error initializing SenseHAT: {e}")
                 self.sensor = None
@@ -65,13 +63,6 @@ class SensorDataManager:
         
         self.running = False
         self.thread = None
-        self.display_thread = None
-        self.display_running = False
-        
-        # Current sensor values for display
-        self.current_temp = None
-        self.current_pressure = None
-        self.current_humidity = None
     
     def read_sensors(self):
         """Read current sensor values"""
@@ -103,80 +94,13 @@ class SensorDataManager:
             self.temperatures.append(temp)
             self.pressures.append(pressure)
             self.humidities.append(humidity)
-            
-            # Update current values for LED display
-            self.current_temp = temp
-            self.current_pressure = pressure
-            self.current_humidity = humidity
     
     def get_data(self):
         """Get all current data"""
         with self.lock:
             return {
                 'timestamps': list(self.timestamps),
-        display_on_led(self, text, color):
-        """Display text on SenseHAT LED matrix"""
-        if self.sensor:
-            try:
-                self.sensor.show_message(text, text_colour=color, scroll_speed=0.05)
-            except Exception as e:
-                print(f"Error displaying on LED: {e}")
-    
-    def led_display_loop(self):
-        """Display measurements on LED matrix, alternating every 10 seconds"""
-        display_modes = ['temp', 'humidity', 'pressure']
-        current_mode = 0
-        
-        while self.display_running:
-            try:
-                mode = display_modes[current_mode]
-                
-                if mode == 'temp' and self.current_temp is not None:
-                    text = f"and LED display threads"""
-        if not self.running:
-            self.running = True
-            self.thread = Thread(target=self.polling_loop, daemon=True)
-            self.thread.start()
-            print("Sensor polling started")
-            
-        if not self.display_running and self.sensor:
-            self.display_runand LED display threads"""
-        self.running = False
-        if self.thread:
-            self.thread.join(timeout=5)
-        print("Sensor polling stopped")
-        
-        self.display_running = False
-        if self.display_thread:
-            self.display_thread.join(timeout=5)
-        
-        # Clear LED display
-        if self.sensor:
-            try:
-                self.sensor.clear()
-            except Exception as e:
-                print(f"Error clearing LED: {e}")
-        print("LED displaylay_on_led(text, color)
-                elif mode == 'pressure' and self.current_pressure is not None:
-                    text = f"P:{self.current_pressure:.0f}"
-                    color = (0, 255, 100)  # Green
-                    self.display_on_led(text, color)
-                else:
-                    # No data yet, show waiting message
-                    if self.sensor:
-                        self.sensor.show_message("...", text_colour=(100, 100, 100), scroll_speed=0.05)
-                
-                # Move to next display mode
-                current_mode = (current_mode + 1) % len(display_modes)
-                
-                # Wait 10 seconds before switching
-                time.sleep(10)
-                
-            except Exception as e:
-                print(f"Error in LED display loop: {e}")
-                time.sleep(5)
-    
-    def         'temperatures': list(self.temperatures),
+                'temperatures': list(self.temperatures),
                 'pressures': list(self.pressures),
                 'humidities': list(self.humidities),
             }
