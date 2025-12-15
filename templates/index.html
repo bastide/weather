@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Monitor - SenseHAT</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+        
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.15);
+        }
+        
+        .stat-card h3 {
+            color: #667eea;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+        }
+        
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        .stat-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            font-size: 0.9em;
+        }
+        
+        .stat-detail {
+            text-align: center;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+        
+        .stat-detail-label {
+            color: #666;
+            font-size: 0.8em;
+            text-transform: uppercase;
+        }
+        
+        .stat-detail-value {
+            color: #333;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        
+        .chart-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .chart-title {
+            color: #333;
+            font-size: 1.2em;
+            font-weight: 600;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .status {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .status-info {
+            display: flex;
+            gap: 30px;
+        }
+        
+        .status-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .status-label {
+            color: #666;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .status-value {
+            color: #333;
+            font-weight: bold;
+            margin-top: 5px;
+            font-size: 1.1em;
+        }
+        
+        .status-dot {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            background: #4CAF50;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+        
+        .refresh-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background 0.3s;
+        }
+        
+        .refresh-btn:hover {
+            background: #764ba2;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: white;
+            font-size: 1.1em;
+        }
+        
+        .error {
+            background: #ff6b6b;
+            color: white;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            header h1 {
+                font-size: 1.8em;
+            }
+            
+            .stat-details {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌡️ Weather Monitor</h1>
+            <p>Real-time sensor data from SenseHAT</p>
+        </header>
+        
+        <div class="status">
+            <div class="status-info">
+                <div class="status-item">
+                    <span class="status-label"><span class="status-dot"></span>Status</span>
+                    <span class="status-value" id="status">Loading...</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Samples</span>
+                    <span class="status-value" id="sample-count">0</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Last Update</span>
+                    <span class="status-value" id="last-update">--:--:--</span>
+                </div>
+            </div>
+            <button class="refresh-btn" onclick="refreshAll()">Refresh Now</button>
+        </div>
+        
+        <div class="stats-grid" id="stats-grid">
+            <div class="loading">Loading statistics...</div>
+        </div>
+        
+        <div class="charts-grid">
+            <div class="chart-container">
+                <div class="chart-title">Temperature</div>
+                <div id="temperature-chart"></div>
+            </div>
+            <div class="chart-container">
+                <div class="chart-title">Pressure</div>
+                <div id="pressure-chart"></div>
+            </div>
+            <div class="chart-container">
+                <div class="chart-title">Humidity</div>
+                <div id="humidity-chart"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/stats');
+                const stats = await response.json();
+                
+                const container = document.getElementById('stats-grid');
+                
+                if (stats.message) {
+                    container.innerHTML = `<div class="loading">${stats.message}</div>`;
+                    return;
+                }
+                
+                const formatValue = (value, unit) => {
+                    if (typeof value === 'number') {
+                        return value.toFixed(1) + unit;
+                    }
+                    return 'N/A';
+                };
+                
+                container.innerHTML = `
+                    <div class="stat-card">
+                        <h3>🌡️ Temperature</h3>
+                        <div class="stat-value">${formatValue(stats.temperature.current, '°C')}</div>
+                        <div class="stat-details">
+                            <div class="stat-detail">
+                                <div class="stat-detail-label">Min</div>
+                                <div class="stat-detail-value">${formatValue(stats.temperature.min, '°C')}</div>
+                            </div>
+                            <div class="stat-detail">
+                                <div class="stat-detail-label">Avg</div>
+                                <div class="stat-detail-value">${formatValue(stats.temperature.avg, '°C')}</div>
+                            </div>
+                            <div class="stat-detail">
+                                <div class="stat-detail-label">Max</div>
+                                <div class="stat-detail-value">${formatValue(stats.temperature.max, '°C')}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>💨 Pressure</h3>
+                        <div class="stat-value">${formatValue(stats.pressure.current, 'hPa')}</div>
+                        <div class="stat-details">
+                            <div class="stat-detail">
+                                <div class="stat-detail-label">Min</div>
+                                <div class="stat-detail-value">${formatValue(stats.pressure.min, 'hPa')}</div>
+                            </div>
+                            <div class="stat-detail">
+                                <div class="stat-detail-label">Avg</div>
+                                <div class="stat-detail-value">${formatValue(stats.pressure.avg, 'hPa')}</div>
+                            </div>
+                            <div class="stat-detail">
+                                <div class="stat-detail-label">Max</div>
+                                <div class="stat-detail-value">${formatValue(stats.pressure.max, 'hPa')}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>💧 Humidity</h3>
+                        <div class="stat-value">${formatValue(stats.humidity.current, '%')}</div>
+                        <div class="stat-details">
+                            <div class="stat-detail">
+                                <div class="stat-detail-label">Min</div>
+                                <div class="stat-detail-value">${formatValue(stats.humidity.min, '%')}</div>
+                            </div>
+                            <div class="stat-detail">
+                                <div class="stat-detail-label">Avg</div>
+                                <div class="stat-detail-value">${formatValue(stats.humidity.avg, '%')}</div>
+                            </div>
+                            <div class="stat-detail">
+                                <div class="stat-detail-label">Max</div>
+                                <div class="stat-detail-value">${formatValue(stats.humidity.max, '%')}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Update status
+                document.getElementById('status').textContent = 'Active';
+                document.getElementById('sample-count').textContent = stats.sample_count + ' / ' + stats.max_samples;
+                
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+        
+        async function loadChart(chartId, apiEndpoint) {
+            try {
+                const response = await fetch(apiEndpoint);
+                if (response.status === 204) {
+                    document.getElementById(chartId).innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">No data available yet</div>';
+                    return;
+                }
+                
+                const data = await response.json();
+                Plotly.newPlot(chartId, data.data, data.layout, {responsive: true});
+            } catch (error) {
+                console.error(`Error loading chart ${chartId}:`, error);
+            }
+        }
+        
+        function updateTimestamp() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('last-update').textContent = `${hours}:${minutes}:${seconds}`;
+        }
+        
+        function refreshAll() {
+            loadStats();
+            loadChart('temperature-chart', '/api/chart/temperature');
+            loadChart('pressure-chart', '/api/chart/pressure');
+            loadChart('humidity-chart', '/api/chart/humidity');
+            updateTimestamp();
+        }
+        
+        // Initial load
+        refreshAll();
+        
+        // Auto-refresh every 60 seconds
+        setInterval(refreshAll, 60000);
+        
+        // Update timestamp every second
+        setInterval(updateTimestamp, 1000);
+    </script>
+</body>
+</html>
