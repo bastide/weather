@@ -56,7 +56,7 @@ class SensorDataManager:
                 # Enable IMU (needed for humidity on some models)
                 self.sensor.set_imu_config(True, True, True)
             except Exception as e:
-                print(f"Error initializing SenseHAT: {e}")
+                print("Error initializing SenseHAT: {}".format(e))
                 self.sensor = None
         else:
             self.sensor = None
@@ -73,7 +73,7 @@ class SensorDataManager:
                 humidity = self.sensor.get_humidity()
                 return temp, pressure, humidity
             except Exception as e:
-                print(f"Error reading sensors: {e}")
+                print("Error reading sensors: {}".format(e))
                 return self._get_mock_data()
         else:
             return self._get_mock_data()
@@ -111,10 +111,10 @@ class SensorDataManager:
             try:
                 temp, pressure, humidity = self.read_sensors()
                 self.add_sample(temp, pressure, humidity)
-                print(f"{datetime.now()}: T={temp:.1f}°C, P={pressure:.1f}hPa, H={humidity:.1f}%")
+                print("{}: T={:.1f}°C, P={:.1f}hPa, H={:.1f}%".format(datetime.now(), temp, pressure, humidity))
                 time.sleep(self.polling_interval)
             except Exception as e:
-                print(f"Error in polling loop: {e}")
+                print("Error in polling loop: {}".format(e))
                 time.sleep(5)
     
     def start(self):
