@@ -1,0 +1,21 @@
+# Requirements for Enviro+ Air Quality Monitor
+
+# Pimoroni Enviro+ libraries
+enviroplus>=0.0.7
+pms5003>=0.0.7
+ltr559>=0.1.0
+bme280>=0.0.4
+smbus2>=0.4.0
+st7735>=0.0.5
+
+# Image processing for LCD
+Pillow>=9.0.0
+
+# Web framework
+Flask==2.3.3
+
+# Data visualization
+plotly==5.17.0
+
+# Utilities
+python-dateutil==2.8.2
