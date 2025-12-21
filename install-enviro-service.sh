@@ -18,8 +18,8 @@ After=network.target
 Type=simple
 User=$USER
 WorkingDirectory=$APP_DIR
-Environment="PATH=$APP_DIR/venv/bin"
-ExecStart=$APP_DIR/venv/bin/python3 $APP_DIR/app_enviro.py
+Environment="PATH=$APP_DIR/.venv/bin"
+ExecStart=$APP_DIR/.venv/bin/python3 $APP_DIR/app_enviro.py
 Restart=always
 RestartSec=10
 

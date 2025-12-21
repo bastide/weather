@@ -5,6 +5,15 @@ Polls environmental and air quality sensors every 10 minutes
 Displays time series data in interactive charts
 """
 
+import logging
+
+# Configure logging first, before other imports
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
 import os
 import json
 from datetime import datetime, timedelta
@@ -18,17 +27,19 @@ import plotly.utils
 
 from enviro_sensors import EnviroSensors
 
+logger = logging.getLogger(__name__)
+
 
 app = Flask(__name__)
 
 
 class SensorDataManager:
     """Manages sensor data collection and storage with memory rotation"""
-    
+
     def __init__(self, max_samples=1000, polling_interval=600):
         """
         Initialize sensor data manager
-        
+
         Args:
             max_samples: Maximum number of samples to keep in memory
             polling_interval: Time between polls in seconds (default 10 minutes)
@@ -36,7 +47,7 @@ class SensorDataManager:
         self.max_samples = max_samples
         self.polling_interval = polling_interval
         self.lock = Lock()
-        
+
         # Deques maintain order and allow efficient rotation
         self.timestamps = deque(maxlen=max_samples)
         self.temperatures = deque(maxlen=max_samples)
@@ -50,35 +61,35 @@ class SensorDataManager:
         self.pm1 = deque(maxlen=max_samples)
         self.pm2_5 = deque(maxlen=max_samples)
         self.pm10 = deque(maxlen=max_samples)
-        
+
         # Initialize sensors
         self.sensors = EnviroSensors()
-        
+
         self.running = False
         self.thread = None
-    
+
     def read_sensors(self):
         """Read current sensor values"""
         try:
             data = self.sensors.read_all()
-            
+
             # Extract values with default fallbacks
             temp = data.get('temperature', 0)
             pressure = data.get('pressure', 0)
             humidity = data.get('humidity', 0)
             light = data.get('light', 0)
             proximity = data.get('proximity', 0)
-            
+
             gas = data.get('gas') or {}
             gas_ox = gas.get('oxidising', 0)
             gas_red = gas.get('reducing', 0)
             gas_nh3 = gas.get('nh3', 0)
-            
+
             pm = data.get('particulates') or {}
             pm1 = pm.get('pm1', 0)
             pm2_5 = pm.get('pm2_5', 0)
             pm10 = pm.get('pm10', 0)
-            
+
             return {
                 'temperature': temp,
                 'pressure': pressure,
@@ -93,14 +104,14 @@ class SensorDataManager:
                 'pm10': pm10
             }
         except Exception as e:
-            print(f"Error reading sensors: {e}")
+            logger.error(f"Error reading sensors: {e}")
             return None
-    
+
     def add_sample(self, data):
         """Add a new sensor sample"""
         if not data:
             return
-        
+
         with self.lock:
             now = datetime.now()
             self.timestamps.append(now)
@@ -115,7 +126,7 @@ class SensorDataManager:
             self.pm1.append(data['pm1'])
             self.pm2_5.append(data['pm2_5'])
             self.pm10.append(data['pm10'])
-    
+
     def get_data(self):
         """Get all current data"""
         with self.lock:
@@ -133,7 +144,7 @@ class SensorDataManager:
                 'pm2_5': list(self.pm2_5),
                 'pm10': list(self.pm10),
             }
-    
+
     def polling_loop(self):
         """Main polling loop"""
         while self.running:
@@ -141,7 +152,7 @@ class SensorDataManager:
                 data = self.read_sensors()
                 if data:
                     self.add_sample(data)
-                    print("{}: T={:.1f}°C, P={:.1f}hPa, H={:.1f}%, Light={:.1f}lux, PM2.5={:.1f}µg/m³".format(
+                    logger.info("{}: T={:.1f}°C, P={:.1f}hPa, H={:.1f}%, Light={:.1f}lux, PM2.5={:.1f}µg/m³".format(
                         datetime.now(),
                         data['temperature'],
                         data['pressure'],
@@ -149,7 +160,7 @@ class SensorDataManager:
                         data['light'],
                         data['pm2_5']
                     ))
-                    
+
                     # Display data on LCD
                     display_data = {
                         'temperature': data['temperature'],
@@ -161,32 +172,32 @@ class SensorDataManager:
                         }
                     }
                     self.sensors.display_on_lcd(display_data)
-                    
+
                 time.sleep(self.polling_interval)
             except Exception as e:
-                print(f"Error in polling loop: {e}")
+                logger.error(f"Error in polling loop: {e}")
                 time.sleep(5)
-    
+
     def start(self):
         """Start the polling thread"""
         if not self.running:
             self.running = True
             self.thread = Thread(target=self.polling_loop, daemon=True)
             self.thread.start()
-            print("Sensor polling started")
-    
+            logger.info("Sensor polling started")
+
     def stop(self):
         """Stop the polling thread"""
         self.running = False
         if self.thread:
             self.thread.join(timeout=5)
         self.sensors.cleanup()
-        print("Sensor polling stopped")
+        logger.info("Sensor polling stopped")
 
 
 # Initialize the sensor data manager
 # Use 10-minute polling interval (600 seconds) and 1000 sample capacity
-sensor_manager = SensorDataManager(max_samples=1000, polling_interval=600)
+sensor_manager = SensorDataManager(max_samples=20000, polling_interval=600)
 
 
 @app.route('/')
@@ -199,10 +210,10 @@ def index():
 def get_data():
     """API endpoint to get sensor data"""
     data = sensor_manager.get_data()
-    
+
     # Convert datetime objects to ISO format strings for JSON serialization
     timestamps = [ts.isoformat() for ts in data['timestamps']]
-    
+
     return jsonify({
         'timestamps': timestamps,
         'temperatures': data['temperatures'],
@@ -225,13 +236,13 @@ def get_data():
 def get_stats():
     """Get statistics about the data"""
     data = sensor_manager.get_data()
-    
+
     if not data['temperatures']:
         return jsonify({
             'message': 'No data available yet',
             'sample_count': 0
         })
-    
+
     def calc_stats(values):
         """Calculate min, max, avg for a list of values"""
         if not values:
@@ -242,7 +253,7 @@ def get_stats():
             'max': max(values),
             'avg': sum(values) / len(values),
         }
-    
+
     stats = {
         'temperature': calc_stats(data['temperatures']),
         'pressure': calc_stats(data['pressures']),
@@ -260,7 +271,7 @@ def get_stats():
         'first_sample': data['timestamps'][0].isoformat() if data['timestamps'] else None,
         'last_sample': data['timestamps'][-1].isoformat() if data['timestamps'] else None,
     }
-    
+
     return jsonify(stats)
 
 
@@ -268,10 +279,10 @@ def get_stats():
 def chart_temperature():
     """Generate temperature chart"""
     data = sensor_manager.get_data()
-    
+
     if not data['timestamps']:
         return jsonify({'error': 'No data available'}), 204
-    
+
     fig = go.Figure()
     fig.add_trace(go.Scatter(
         x=data['timestamps'],
@@ -281,7 +292,7 @@ def chart_temperature():
         line=dict(color='#FF6B6B', width=2),
         marker=dict(size=4)
     ))
-    
+
     fig.update_layout(
         title='Temperature Time Series',
         xaxis_title='Time',
@@ -290,7 +301,7 @@ def chart_temperature():
         hovermode='x unified',
         height=400,
     )
-    
+
     graphJSON = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
     return graphJSON
 
@@ -299,10 +310,10 @@ def chart_temperature():
 def chart_pressure():
     """Generate pressure chart"""
     data = sensor_manager.get_data()
-    
+
     if not data['timestamps']:
         return jsonify({'error': 'No data available'}), 204
-    
+
     fig = go.Figure()
     fig.add_trace(go.Scatter(
         x=data['timestamps'],
@@ -312,7 +323,7 @@ def chart_pressure():
         line=dict(color='#4ECDC4', width=2),
         marker=dict(size=4)
     ))
-    
+
     fig.update_layout(
         title='Barometric Pressure Time Series',
         xaxis_title='Time',
@@ -321,7 +332,7 @@ def chart_pressure():
         hovermode='x unified',
         height=400,
     )
-    
+
     graphJSON = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
     return graphJSON
 
@@ -330,10 +341,10 @@ def chart_pressure():
 def chart_humidity():
     """Generate humidity chart"""
     data = sensor_manager.get_data()
-    
+
     if not data['timestamps']:
         return jsonify({'error': 'No data available'}), 204
-    
+
     fig = go.Figure()
     fig.add_trace(go.Scatter(
         x=data['timestamps'],
@@ -343,7 +354,7 @@ def chart_humidity():
         line=dict(color='#95E1D3', width=2),
         marker=dict(size=4)
     ))
-    
+
     fig.update_layout(
         title='Humidity Time Series',
         xaxis_title='Time',
@@ -352,7 +363,7 @@ def chart_humidity():
         hovermode='x unified',
         height=400,
     )
-    
+
     graphJSON = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
     return graphJSON
 
@@ -361,10 +372,10 @@ def chart_humidity():
 def chart_light():
     """Generate light level chart"""
     data = sensor_manager.get_data()
-    
+
     if not data['timestamps']:
         return jsonify({'error': 'No data available'}), 204
-    
+
     fig = go.Figure()
     fig.add_trace(go.Scatter(
         x=data['timestamps'],
@@ -374,7 +385,7 @@ def chart_light():
         line=dict(color='#FFD93D', width=2),
         marker=dict(size=4)
     ))
-    
+
     fig.update_layout(
         title='Light Level Time Series',
         xaxis_title='Time',
@@ -383,7 +394,7 @@ def chart_light():
         hovermode='x unified',
         height=400,
     )
-    
+
     graphJSON = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
     return graphJSON
 
@@ -392,10 +403,10 @@ def chart_light():
 def chart_particulates():
     """Generate particulate matter chart"""
     data = sensor_manager.get_data()
-    
+
     if not data['timestamps']:
         return jsonify({'error': 'No data available'}), 204
-    
+
     fig = go.Figure()
     fig.add_trace(go.Scatter(
         x=data['timestamps'],
@@ -421,7 +432,7 @@ def chart_particulates():
         line=dict(color='#FFAAA5', width=2),
         marker=dict(size=4)
     ))
-    
+
     fig.update_layout(
         title='Particulate Matter Time Series',
         xaxis_title='Time',
@@ -430,7 +441,7 @@ def chart_particulates():
         hovermode='x unified',
         height=400,
     )
-    
+
     graphJSON = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
     return graphJSON
 
@@ -439,10 +450,10 @@ def chart_particulates():
 def chart_gas():
     """Generate gas sensors chart"""
     data = sensor_manager.get_data()
-    
+
     if not data['timestamps']:
         return jsonify({'error': 'No data available'}), 204
-    
+
     fig = go.Figure()
     fig.add_trace(go.Scatter(
         x=data['timestamps'],
@@ -468,7 +479,7 @@ def chart_gas():
         line=dict(color='#6B9BCF', width=2),
         marker=dict(size=4)
     ))
-    
+
     fig.update_layout(
         title='Gas Sensors Time Series',
         xaxis_title='Time',
@@ -477,7 +488,7 @@ def chart_gas():
         hovermode='x unified',
         height=400,
     )
-    
+
     graphJSON = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
     return graphJSON
 
@@ -485,7 +496,7 @@ def chart_gas():
 if __name__ == '__main__':
     # Start sensor polling
     sensor_manager.start()
-    
+
     try:
         # Run Flask app on all interfaces, port 5001
         app.run(host='0.0.0.0', port=5001, debug=False)
