@@ -197,7 +197,7 @@ class SensorDataManager:
 
 # Initialize the sensor data manager
 # Use 10-minute polling interval (600 seconds) and 1000 sample capacity
-sensor_manager = SensorDataManager(max_samples=20000, polling_interval=600)
+sensor_manager = SensorDataManager(max_samples=20000, polling_interval=60)
 
 
 @app.route('/')

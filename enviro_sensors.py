@@ -108,7 +108,7 @@ class EnviroSensors:
             logger.info(f"Raw temp: {raw_temp:.2f}C, CPU temp: {cpu_temp:.2f}C")
             # Compensate for CPU heat influence
             # The compensation factor can be tuned based on your setup
-            compensation_factor = 4.9
+            compensation_factor = 1.42
             compensated_temp = raw_temp - ((cpu_temp - raw_temp) / compensation_factor)
 
             return compensated_temp
